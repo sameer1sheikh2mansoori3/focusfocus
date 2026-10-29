@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@source "../components";
+@source "../app";
+
+@theme {
+  --color-udemy-purple: #a435f0;
+  --color-udemy-purple-hover: #8710d8;
+  --color-udemy-purple-dark: #5624d0;
+  --color-udemy-charcoal: #1c1d1f;
+  --color-udemy-gray-bg: #f7f9fa;
+  --color-udemy-border: #d1d7dc;
+  --color-udemy-muted: #6a6f73;
+  --color-udemy-star: #e59819;
+  --color-udemy-bestseller-bg: #eceb98;
+  --color-udemy-bestseller-text: #3d3c0a;
+}
+
+:root {
+  --udemy-purple: #a435f0;
+  --udemy-purple-hover: #8710d8;
+  --udemy-purple-dark: #5624d0;
+  --udemy-charcoal: #1c1d1f;
+  --udemy-gray-bg: #f7f9fa;
+  --udemy-border: #d1d7dc;
+  --udemy-muted: #6a6f73;
+  --udemy-star: #e59819;
+  --udemy-bestseller-bg: #eceb98;
+  --udemy-bestseller-text: #3d3c0a;
+}
+
+body {
+  background-color: #ffffff;
+  color: #1c1d1f;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Udemy Style Shadows & Badges */
+.udemy-card {
+  background: #ffffff;
+  border: 1px solid #d1d7dc;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.udemy-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-color: #a435f0;
+}
+
+.udemy-bestseller-badge {
+  background-color: #eceb98;
+  color: #3d3c0a;
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.udemy-btn-primary {
+  background-color: #a435f0;
+  color: #ffffff;
+  font-weight: 700;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+.udemy-btn-primary:hover {
+  background-color: #8710d8;
+}
+
+.udemy-btn-secondary {
+  background-color: transparent;
+  color: #1c1d1f;
+  border: 1px solid #1c1d1f;
+  font-weight: 700;
+  transition: background-color 0.15s ease;
+}
+
+.udemy-btn-secondary:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.udemy-telegram-btn {
+  background: linear-gradient(135deg, #0088cc 0%, #0077b5 100%);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+  transition: all 0.2s ease;
+}
+
+.udemy-telegram-btn:hover {
+  background: linear-gradient(135deg, #0099e6 0%, #0088cc 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 136, 204, 0.4);
+}
