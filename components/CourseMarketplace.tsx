@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Course } from '@/lib/data';
 import {
@@ -35,15 +35,34 @@ export default function CourseMarketplace({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeModalCourse, setActiveModalCourse] = useState<Course | null>(null);
 
+  // Sync category from Navbar or URL hash
+  useEffect(() => {
+    const handleCategoryEvent = (e: any) => {
+      if (e.detail) {
+        setSelectedCategory(e.detail);
+      }
+    };
+    window.addEventListener('select-category', handleCategoryEvent);
+
+    if (typeof window !== 'undefined' && window.location.hash.startsWith('#category=')) {
+      const catFromHash = decodeURIComponent(window.location.hash.replace('#category=', ''));
+      if (catFromHash) setSelectedCategory(catFromHash);
+    }
+
+    return () => window.removeEventListener('select-category', handleCategoryEvent);
+  }, []);
+
   // Available categories
   const availableCategories = useMemo(() => {
     const list = new Set<string>();
     list.add('All');
     if (categories && categories.length > 0) {
-      categories.forEach((c) => list.add(c));
+      categories.forEach((c) => {
+        if (c && c.trim()) list.add(c.trim());
+      });
     }
     courses.forEach((c) => {
-      if (c.category) list.add(c.category);
+      if (c.category && c.category.trim()) list.add(c.category.trim());
     });
     return Array.from(list);
   }, [courses, categories]);
@@ -51,13 +70,18 @@ export default function CourseMarketplace({
   // Filter courses
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
-      const matchesCategory =
-        selectedCategory === 'All' || course.category?.toLowerCase() === selectedCategory.toLowerCase();
+      const courseCat = (course.category || '').trim().toLowerCase();
+      const selectedCat = (selectedCategory || 'All').trim().toLowerCase();
+      const matchesCategory = selectedCat === 'all' || courseCat === selectedCat;
+
+      const q = searchQuery.trim().toLowerCase();
       const matchesSearch =
-        searchQuery === '' ||
-        course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.headline.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        course.instructor.toLowerCase().includes(searchQuery.toLowerCase());
+        q === '' ||
+        course.title.toLowerCase().includes(q) ||
+        (course.headline || '').toLowerCase().includes(q) ||
+        (course.instructor || '').toLowerCase().includes(q) ||
+        courseCat.includes(q);
+
       return matchesCategory && matchesSearch;
     });
   }, [courses, selectedCategory, searchQuery]);
@@ -204,6 +228,12 @@ export default function CourseMarketplace({
 
                     {/* Meta info */}
                     <div className="p-4">
+                      {course.category && (
+                        <span className="inline-block text-[11px] font-bold text-[#a435f0] bg-purple-50 px-2 py-0.5 rounded mb-1.5">
+                          {course.category}
+                        </span>
+                      )}
+
                       {/* Course Title */}
                       <h3
                         onClick={() => setActiveModalCourse(course)}

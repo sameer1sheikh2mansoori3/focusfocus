@@ -30,6 +30,17 @@ import {
   Key,
 } from 'lucide-react';
 
+const DEFAULT_CATEGORIES: string[] = [
+  'Web Development',
+  'Python & Data Science',
+  'Artificial Intelligence',
+  'Video Editing',
+  'Cyber Security',
+  'Mobile App Development',
+  'Graphic Design',
+  'Digital Marketing',
+];
+
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
@@ -39,7 +50,7 @@ export default function AdminPage() {
   // Data states (Zero dummy data)
   const [courses, setCourses] = useState<Course[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [newCategoryInput, setNewCategoryInput] = useState<string>('');
   const [showInlineNewCategory, setShowInlineNewCategory] = useState<boolean>(false);
   const [stats, setStats] = useState<any>({
@@ -178,7 +189,9 @@ export default function AdminPage() {
 
       if (coursesData.success) setCourses(coursesData.data);
       if (blogsData.success) setBlogs(blogsData.data);
-      if (catData.success) setCategories(catData.data);
+      if (catData.success && Array.isArray(catData.data) && catData.data.length > 0) {
+        setCategories(catData.data);
+      }
       if (statsData.success) {
         setStats(statsData.data);
         setNewTelegramUser(statsData.data.telegramUsername || 'Seed_Skill');
@@ -248,11 +261,29 @@ export default function AdminPage() {
     }
   };
 
-  // UPLOAD POSTER / THUMBNAIL HANDLER
+  // UPLOAD POSTER / THUMBNAIL HANDLER (Dual: Instant client FileReader + Robust API upload)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'course' | 'blog') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset input so selecting the same file again triggers onChange
+    e.target.value = '';
+
+    // Step 1: Instant local client preview using FileReader (Zero lag, 100% reliable)
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        if (target === 'course') {
+          setCourseForm((prev) => ({ ...prev, thumbnailUrl: dataUrl }));
+        } else {
+          setBlogForm((prev) => ({ ...prev, coverImage: dataUrl }));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+
+    // Step 2: Upload to backend
     try {
       setUploadingImage(true);
       const formData = new FormData();
@@ -270,12 +301,12 @@ export default function AdminPage() {
         } else {
           setBlogForm((prev) => ({ ...prev, coverImage: data.url }));
         }
-        showNotification(`Poster uploaded successfully!`);
+        showNotification('Poster uploaded successfully!');
       } else {
-        showNotification(data.error || 'Upload failed');
+        showNotification(data.error ? `Server: ${data.error} (using client preview)` : 'Image ready');
       }
     } catch {
-      showNotification('Error uploading file.');
+      showNotification('Image loaded in preview.');
     } finally {
       setUploadingImage(false);
     }
@@ -337,6 +368,9 @@ export default function AdminPage() {
       return;
     }
 
+    const finalCategory = (courseForm.category || '').trim() || 'Web Development';
+    const payload = { ...courseForm, category: finalCategory };
+
     try {
       if (editingCourse) {
         const res = await fetch('/api/courses', {
@@ -344,12 +378,13 @@ export default function AdminPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: editingCourse.id,
-            ...courseForm,
+            ...payload,
           }),
         });
         const data = await res.json();
         if (data.success) {
           showNotification('Course updated successfully!');
+          setCategories((prev) => Array.from(new Set([...prev, finalCategory])));
           setCourseModalOpen(false);
           loadAllData();
         }
@@ -357,11 +392,12 @@ export default function AdminPage() {
         const res = await fetch('/api/courses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(courseForm),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.success) {
           showNotification('New Course published on store!');
+          setCategories((prev) => Array.from(new Set([...prev, finalCategory])));
           setCourseModalOpen(false);
           loadAllData();
         }
@@ -1241,49 +1277,51 @@ export default function AdminPage() {
                   />
                 </div>
 
+                {/* Course Category */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-[#1c1d1f]">Category *</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowInlineNewCategory(!showInlineNewCategory)}
-                      className="text-[11px] text-[#a435f0] hover:underline font-bold flex items-center gap-0.5"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>{showInlineNewCategory ? 'List' : '+ New'}</span>
-                    </button>
-                  </div>
-
-                  {showInlineNewCategory ? (
-                    <div className="flex gap-1">
-                      <input
-                        type="text"
-                        value={newCategoryInput}
-                        onChange={(e) => setNewCategoryInput(e.target.value)}
-                        placeholder="New category..."
-                        className="flex-1 bg-white border border-[#a435f0] rounded px-2.5 py-1.5 text-xs text-[#1c1d1f] focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddNewCategory(newCategoryInput)}
-                        className="px-2.5 py-1.5 bg-[#a435f0] text-white font-bold text-xs rounded"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  ) : (
-                    <select
+                  <label className="block text-xs font-bold text-[#1c1d1f] mb-1">
+                    Course Category *
+                  </label>
+                  
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="admin-category-suggestions"
                       value={courseForm.category}
                       onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
-                      className="w-full bg-white border border-[#d1d7dc] rounded px-3 py-2 text-xs text-[#1c1d1f] focus:outline-none focus:border-[#a435f0]"
-                    >
+                      placeholder="e.g. Web Development, Python..."
+                      className="w-full bg-white border border-[#d1d7dc] rounded px-3 py-2 text-xs text-[#1c1d1f] font-medium focus:outline-none focus:border-[#a435f0]"
+                    />
+                    <datalist id="admin-category-suggestions">
                       {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
+                        <option key={cat} value={cat} />
                       ))}
-                    </select>
-                  )}
+                    </datalist>
+                  </div>
+
+                  {/* Quick Clickable Category Selection Pills */}
+                  <div className="mt-2">
+                    <p className="text-[10px] text-[#6a6f73] font-semibold mb-1">Quick pick or click to map:</p>
+                    <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                      {categories.map((cat) => {
+                        const isSelected = courseForm.category.trim().toLowerCase() === cat.trim().toLowerCase();
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setCourseForm({ ...courseForm, category: cat })}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${
+                              isSelected
+                                ? 'bg-[#a435f0] text-white shadow-sm'
+                                : 'bg-gray-100 text-[#1c1d1f] hover:bg-gray-200'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -26,6 +26,16 @@ export default function Navbar({ telegramUsername = 'Seed_Skill', categories = [
   const cleanTelegram = telegramUsername.replace(/^@/, '');
   const telegramUrl = `https://t.me/${cleanTelegram}`;
 
+  const handleCategorySelect = (cat: string) => {
+    setCatDropdownOpen(false);
+    setMobileMenuOpen(false);
+    if (typeof window !== 'undefined') {
+      window.location.hash = `category=${encodeURIComponent(cat)}`;
+      window.dispatchEvent(new CustomEvent('select-category', { detail: cat }));
+      document.getElementById('courses')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="w-full">
       {/* 1. Udemy Top Promo Announcement Bar */}
@@ -68,15 +78,15 @@ export default function Navbar({ telegramUsername = 'Seed_Skill', categories = [
                     Explore Popular Categories
                   </div>
                   {categories.map((cat) => (
-                    <a
+                    <button
                       key={cat}
-                      href="#courses"
-                      onClick={() => setCatDropdownOpen(false)}
-                      className="flex items-center justify-between px-4 py-2.5 text-sm text-[#1c1d1f] hover:bg-[#f7f9fa] hover:text-[#a435f0] transition font-normal"
+                      type="button"
+                      onClick={() => handleCategorySelect(cat)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-[#1c1d1f] hover:bg-[#f7f9fa] hover:text-[#a435f0] transition font-normal text-left"
                     >
                       <span>{cat}</span>
                       <span className="text-[#6a6f73] text-xs">›</span>
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}

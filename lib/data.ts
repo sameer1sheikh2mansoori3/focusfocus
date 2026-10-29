@@ -172,6 +172,17 @@ export async function getAdminPassword(): Promise<string> {
 }
 
 // ==================== CATEGORIES (Admin Only Managed) ====================
+export const DEFAULT_CATEGORIES: string[] = [
+  'Web Development',
+  'Python & Data Science',
+  'Artificial Intelligence',
+  'Video Editing',
+  'Cyber Security',
+  'Mobile App Development',
+  'Graphic Design',
+  'Digital Marketing',
+];
+
 export async function getAllCategories(): Promise<string[]> {
   try {
     const db = await getMongoDatabase();
@@ -185,7 +196,11 @@ export async function getAllCategories(): Promise<string[]> {
     console.warn('MongoDB categories fetch failed:', err);
   }
 
-  return readJson<string[]>(categoriesPath, []);
+  const local = readJson<string[]>(categoriesPath, []);
+  if (local && local.length > 0) {
+    return local;
+  }
+  return DEFAULT_CATEGORIES;
 }
 
 export async function addCategory(name: string): Promise<string[]> {
@@ -258,6 +273,15 @@ export async function saveCourse(
     createdAt: new Date().toISOString().split('T')[0],
   };
 
+  // Automatically register category to global categories list if not present
+  if (newCourse.category && newCourse.category.trim()) {
+    try {
+      await addCategory(newCourse.category.trim());
+    } catch (e) {
+      console.warn('Failed to auto-register category on saveCourse:', e);
+    }
+  }
+
   try {
     const db = await getMongoDatabase();
     if (db) {
@@ -274,6 +298,14 @@ export async function saveCourse(
 }
 
 export async function updateCourse(id: string, updated: Partial<Course>): Promise<Course | null> {
+  if (updated.category && updated.category.trim()) {
+    try {
+      await addCategory(updated.category.trim());
+    } catch (e) {
+      console.warn('Failed to auto-register category on updateCourse:', e);
+    }
+  }
+
   try {
     const db = await getMongoDatabase();
     if (db) {

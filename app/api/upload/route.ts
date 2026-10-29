@@ -14,19 +14,20 @@ export async function POST(request: Request) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const mimeType = file.type || 'image/jpeg';
 
-    // Check if Supabase client is available for cloud upload
+    // 1. Supabase Cloud Storage (if configured)
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
         const fileExt = file.name.split('.').pop() || 'jpg';
-        const fileName = `photo-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        const fileName = `poster-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
         const filePath = `store/${fileName}`;
 
         const { data, error } = await supabase.storage
           .from('photos')
           .upload(filePath, buffer, {
-            contentType: file.type || 'image/jpeg',
+            contentType: mimeType,
             upsert: true,
           });
 
@@ -42,30 +43,45 @@ export async function POST(request: Request) {
           });
         }
       } catch (cloudErr) {
-        console.warn('Supabase upload fallback to local storage:', cloudErr);
+        console.warn('Supabase upload failed, falling back to disk/base64:', cloudErr);
       }
     }
 
-    // Local file fallback
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    // 2. Local Disk Storage (local dev environment)
+    try {
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const destination = path.join(uploadsDir, safeName);
+      fs.writeFileSync(destination, buffer);
+
+      return NextResponse.json({
+        success: true,
+        url: `/uploads/${safeName}`,
+        provider: 'local-storage',
+      });
+    } catch (fsErr) {
+      console.warn('Local disk not writable (e.g. Vercel serverless read-only filesystem). Falling back to Base64 data URL.');
     }
 
-    const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const destination = path.join(uploadsDir, safeName);
-    fs.writeFileSync(destination, buffer);
-
-    const publicUrl = `/uploads/${safeName}`;
+    // 3. Guaranteed Serverless / Cloud Fallback (Base64 Data URL)
+    // Works 100% reliably on Vercel without requiring any external storage!
+    const base64Data = buffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      provider: 'local-storage',
+      url: dataUrl,
+      provider: 'base64-data-url',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('File upload error:', error);
-    return NextResponse.json({ success: false, error: 'File upload failed' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error?.message || 'File upload failed' },
+      { status: 500 }
+    );
   }
 }
-
